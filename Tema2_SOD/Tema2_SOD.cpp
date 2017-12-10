@@ -2,15 +2,18 @@
 #include <stdio.h>  
 #include <iostream>
 #include <string>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 using namespace std;
+using namespace cv;
 
 int main()
 {
-	string input;
+	string input, path, operation;
 
 	while (true) {
-		cout << "Do you want to execute another action?" << endl;
+		cout << "Do you want to execute another action:" << endl;
 		cout << "1. Yes" << endl;
 		cout << "2. No" << endl;
 
@@ -20,8 +23,20 @@ int main()
 			break;
 		}
 
-		cout << "Please enter the path to the image";
-		cin >> input;
+		cout << "Please enter the path to the image:" << endl;
+		cin >> path;
+
+		cout << "Please enter the operation to perform on the image:" << endl;
+		cout << "1. Resize" << endl;
+		cin >> operation;
+
+
+		Mat image;
+		image = imread(path, CV_LOAD_IMAGE_COLOR);
+
+		if (operation == "1" || operation == "Resize") {
+			resize_image(image);
+		}
 	}
 
 	int a[5], i;
@@ -47,4 +62,16 @@ int main()
 		for (i = 0; i < 5; i++)
 			a[i] += i;
 	}
+}
+
+void resize_image(Mat image) {
+	float resize_percentage;
+
+	cout << "Please enter resize percentage:" << endl;
+	cin >> resize_percentage;
+
+	int resized_rows = static_cast<int>((image.rows * resize_percentage) / 100);
+	int resized_columns = static_cast<int>((image.cols * resize_percentage) / 100);
+
+
 }
