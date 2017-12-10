@@ -102,7 +102,7 @@ void rotate_image(string path, string new_path) {
 				rotated_pixel[1] = original_pixel[1];
 				rotated_pixel[2] = original_pixel[2];
 
-				rotated_image.at<Vec3b>(current_column, rows - current_row - 1) = rotated_pixel;
+				rotated_image.at<Vec3b>(current_column, rows - 1 - current_row) = rotated_pixel;
 			}
 		}
 
@@ -111,6 +111,26 @@ void rotate_image(string path, string new_path) {
 		save_image(rotated_image, new_path);
 	}
 	else {
+#pragma omp parallel  
+		{
+#pragma omp for 
+			for (int index = 0; index < total_pixels; index++) {
+				int current_row = index / columns;
+				int current_column = index % columns;
+
+				Vec3b rotated_pixel;
+				Vec3b original_pixel = image.at<Vec3b>(current_row, current_column);
+
+				rotated_pixel[0] = original_pixel[0];
+				rotated_pixel[1] = original_pixel[1];
+				rotated_pixel[2] = original_pixel[2];
+
+				rotated_image.at<Vec3b>(columns - current_column - 1, current_row) = rotated_pixel;
+			}
+		}
+
+#pragma omp barrier  
+
 
 		save_image(rotated_image, new_path);
 	}
