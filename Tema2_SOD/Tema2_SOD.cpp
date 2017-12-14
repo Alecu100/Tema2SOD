@@ -2,6 +2,8 @@
 #include <stdio.h>  
 #include <iostream>
 #include <string>
+#include <math.h>
+#include <tuple>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -40,13 +42,21 @@ void save_image(Mat image_to_save, string path) {
 void resize_image(string path, string new_path) {
 	Mat image;
 	image = imread(path, CV_LOAD_IMAGE_COLOR);
-	float resize_percentage;
+	double horizontal_resize_percentage;
+	double vertical_resize_percentage;
 
-	cout << "Please enter resize percentage:" << endl;
-	cin >> resize_percentage;
+	cout << "Please enter horizontal resize percentage:" << endl;
+	cin >> horizontal_resize_percentage;
 
-	int resized_rows = static_cast<int>((image.rows * resize_percentage) / 100);
-	int resized_columns = static_cast<int>((image.cols * resize_percentage) / 100);
+	cout << "Please enter vertical resize percentage:" << endl;
+	cin >> vertical_resize_percentage;
+
+	int resized_rows = static_cast<int>((image.rows * vertical_resize_percentage) / 100);
+	int resized_columns = static_cast<int>((image.cols * horizontal_resize_percentage) / 100);
+
+	int initial_columns = image.cols;
+	int initial_rows = image.rows;
+
 	Size new_size(resized_columns, resized_rows);
 	Mat resized_image(new_size, CV_8UC3);
 
@@ -54,12 +64,132 @@ void resize_image(string path, string new_path) {
 	{
 #pragma omp for 
 		for (int index = 0; index < resized_columns * resized_rows; index++) {
-			int current_row = index / resized_rows;
+			int current_row = index / resized_columns;
 			int current_column = index % resized_columns;
 
+			double horizontal_projection_center = (current_column * horizontal_resize_percentage) / 100;
+			double vertical_projection_center = (current_row * vertical_resize_percentage) / 100;
 
+			vector<tuple<int, float>> unbounded_horizontal_indices_weights;
+			vector<tuple<int, float>> unbounded_vertical_indices_weights;
+
+			int left_limit = 0;
+			int right_limit = 0;
+			int bottom_limit = 0;
+			int top_limit = 0;
+
+			if (horizontal_resize_percentage < 100) {
+				tuple<int, float> left_limit(floor(horizontal_projection_center), 1 - abs(floor(horizontal_projection_center) - horizontal_projection_center));
+				tuple<int, float> right_limit(ceill(horizontal_projection_center), 1 - abs(ceill(horizontal_projection_center) - horizontal_projection_center)); 
+
+				unbounded_horizontal_indices_weights.push_back(left_limit);
+				unbounded_horizontal_indices_weights.push_back(right_limit);
+			}
+			else {
+				double horizontal_distance = horizontal_resize_percentage / 100;
+
+				tuple<int, float> left_limit(floor(horizontal_projection_center - horizontal_distance), 1 - abs(floor(horizontal_projection_center - horizontal_distance) - (horizontal_projection_center - horizontal_distance)));
+				tuple<int, float> right_limit(ceill(horizontal_projection_center + horizontal_distance), 1 - abs(ceill(horizontal_projection_center + horizontal_distance) - (horizontal_projection_center + horizontal_distance)));
+
+				unbounded_horizontal_indices_weights.push_back(left_limit);
+				unbounded_horizontal_indices_weights.push_back(right_limit);
+
+				for (int i = floor(horizontal_projection_center - horizontal_distance) + 1; i <= ceill(horizontal_projection_center + horizontal_distance) - 1; i++) {
+					tuple<int, float> current_weight(i, 1);
+
+					unbounded_horizontal_indices_weights.push_back(current_weight);
+				}
+			}
+
+			if (vertical_resize_percentage < 100) {
+				tuple<int, float> top_limit(floor(vertical_projection_center), 1 - abs(floor(vertical_projection_center) - vertical_projection_center));
+				tuple<int, float> bottom_limit(ceill(vertical_projection_center), 1 - abs(ceill(vertical_projection_center) - vertical_projection_center));
+
+				unbounded_vertical_indices_weights.push_back(top_limit);
+				unbounded_vertical_indices_weights.push_back(bottom_limit);
+			}
+			else {
+				double vertical_distance = vertical_resize_percentage / 100;
+
+				tuple<int, float> top_limit(floor(vertical_projection_center - vertical_distance), 1 - abs(floor(vertical_projection_center - vertical_distance) - (vertical_projection_center - vertical_distance)));
+				tuple<int, float> bottom_limit(ceill(vertical_projection_center + vertical_distance), 1 - abs(ceill(vertical_projection_center + vertical_distance) - (horizontal_projection_center + vertical_distance)));
+
+				unbounded_vertical_indices_weights.push_back(top_limit);
+				unbounded_vertical_indices_weights.push_back(bottom_limit);
+
+				for (int i = floor(vertical_projection_center - vertical_distance) + 1; i <= ceill(vertical_projection_center + vertical_distance) - 1; i++) {
+					tuple<int, float> current_weight(i, 1);
+
+					unbounded_vertical_indices_weights.push_back(current_weight);
+				}
+			}
+
+			vector<tuple<int, float>> horizontal_indices_weights;
+			vector<tuple<int, float>> vertical_indices_weights;
+
+			for (int index_indices = 0; index_indices < unbounded_horizontal_indices_weights.size(); index_indices++) {
+				tuple<int, float> current_weight = unbounded_horizontal_indices_weights.at(index_indices);
+
+				if (get<0>(current_weight) > 0 && get<0>(current_weight) < initial_columns) {
+					horizontal_indices_weights.push_back(current_weight);
+				 }
+			}
+
+			for (int index_indices = 0; index_indices < unbounded_vertical_indices_weights.size(); index_indices++) {
+				tuple<int, float> current_weight = unbounded_vertical_indices_weights.at(index_indices);
+
+				if (get<0>(current_weight) > 0 && get<0>(current_weight) < initial_rows) {
+					vertical_indices_weights.push_back(current_weight);
+				}
+			}
+
+			double total_weights = 0;
+
+			for (int index_in_horizontal = 0; index_in_horizontal < horizontal_indices_weights.size(); index_in_horizontal++) {
+				for (int index_in_vertical = 0; index_in_vertical < vertical_indices_weights.size(); index_in_vertical) {
+					tuple<int, float> horizontal_weight = horizontal_indices_weights.at(index_in_horizontal);
+					tuple<int, float> vetical_weight = vertical_indices_weights.at(index_in_vertical);
+
+					total_weights += get<1>(horizontal_weight) * get<1>(vetical_weight);
+				}
+			}
+
+			double average_red = 0;
+			double average_green = 0;
+			double average_blue = 0;
+
+			double normalize_delta = 255 / 2;
+
+			for (int index_in_horizontal = 0; index_in_horizontal < horizontal_indices_weights.size(); index_in_horizontal++) {
+				for (int index_in_vertical = 0; index_in_vertical < vertical_indices_weights.size(); index_in_vertical) {
+					tuple<int, float> horizontal_weight = horizontal_indices_weights.at(index_in_horizontal);
+					tuple<int, float> vertical_weight = vertical_indices_weights.at(index_in_vertical);
+
+					Vec3b colors = image.at<Vec3b>(get<0>(vertical_weight), get<0>(horizontal_weight));
+
+					average_blue += (colors[0] - normalize_delta)  * get<1>(horizontal_weight) * get<1>(vertical_weight);
+
+					average_green += (colors[1] - normalize_delta)  * get<1>(horizontal_weight) * get<1>(vertical_weight);
+
+					average_red += (colors[2] - normalize_delta)  * get<1>(horizontal_weight) * get<1>(vertical_weight);
+				}
+			}
+
+			average_blue = (average_blue / total_weights) + normalize_delta;
+			average_green = (average_green / total_weights) + normalize_delta;
+			average_red = (average_red / total_weights) + normalize_delta;
+
+			Vec3b new_color;
+
+			new_color[0] = static_cast<uchar>(average_blue);
+			new_color[1] = static_cast<uchar>(average_green);
+			new_color[2] = static_cast<uchar>(average_red);
+
+			resized_image.at<Vec3b>(current_row, current_column) = new_color;
 		}
 	}
+
+	save_image(resized_image, new_path);
 }
 
 void rotate_image(string path, string new_path) {
