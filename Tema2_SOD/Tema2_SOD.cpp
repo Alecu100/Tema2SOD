@@ -67,8 +67,8 @@ void resize_image(string path, string new_path) {
 			int current_row = index / resized_columns;
 			int current_column = index % resized_columns;
 
-			double horizontal_projection_center = (current_column * horizontal_resize_percentage) / 100;
-			double vertical_projection_center = (current_row * vertical_resize_percentage) / 100;
+			double horizontal_projection_center = (current_column * 100) / horizontal_resize_percentage;
+			double vertical_projection_center = (current_row * 100) / vertical_resize_percentage;
 
 			vector<tuple<int, float>> unbounded_horizontal_indices_weights;
 			vector<tuple<int, float>> unbounded_vertical_indices_weights;
@@ -78,7 +78,7 @@ void resize_image(string path, string new_path) {
 			int bottom_limit = 0;
 			int top_limit = 0;
 
-			if (horizontal_resize_percentage < 100) {
+			if (horizontal_resize_percentage > 100) {
 				tuple<int, float> left_limit(floor(horizontal_projection_center), 1 - abs(floor(horizontal_projection_center) - horizontal_projection_center));
 				tuple<int, float> right_limit(ceill(horizontal_projection_center), 1 - abs(ceill(horizontal_projection_center) - horizontal_projection_center)); 
 
@@ -101,7 +101,7 @@ void resize_image(string path, string new_path) {
 				}
 			}
 
-			if (vertical_resize_percentage < 100) {
+			if (vertical_resize_percentage > 100) {
 				tuple<int, float> top_limit(floor(vertical_projection_center), 1 - abs(floor(vertical_projection_center) - vertical_projection_center));
 				tuple<int, float> bottom_limit(ceill(vertical_projection_center), 1 - abs(ceill(vertical_projection_center) - vertical_projection_center));
 
@@ -130,7 +130,7 @@ void resize_image(string path, string new_path) {
 			for (int index_indices = 0; index_indices < unbounded_horizontal_indices_weights.size(); index_indices++) {
 				tuple<int, float> current_weight = unbounded_horizontal_indices_weights.at(index_indices);
 
-				if (get<0>(current_weight) > 0 && get<0>(current_weight) < initial_columns) {
+				if (get<0>(current_weight) >= 0 && get<0>(current_weight) < initial_columns) {
 					horizontal_indices_weights.push_back(current_weight);
 				 }
 			}
@@ -138,7 +138,7 @@ void resize_image(string path, string new_path) {
 			for (int index_indices = 0; index_indices < unbounded_vertical_indices_weights.size(); index_indices++) {
 				tuple<int, float> current_weight = unbounded_vertical_indices_weights.at(index_indices);
 
-				if (get<0>(current_weight) > 0 && get<0>(current_weight) < initial_rows) {
+				if (get<0>(current_weight) >= 0 && get<0>(current_weight) < initial_rows) {
 					vertical_indices_weights.push_back(current_weight);
 				}
 			}
@@ -146,7 +146,7 @@ void resize_image(string path, string new_path) {
 			double total_weights = 0;
 
 			for (int index_in_horizontal = 0; index_in_horizontal < horizontal_indices_weights.size(); index_in_horizontal++) {
-				for (int index_in_vertical = 0; index_in_vertical < vertical_indices_weights.size(); index_in_vertical) {
+				for (int index_in_vertical = 0; index_in_vertical < vertical_indices_weights.size(); index_in_vertical++) {
 					tuple<int, float> horizontal_weight = horizontal_indices_weights.at(index_in_horizontal);
 					tuple<int, float> vetical_weight = vertical_indices_weights.at(index_in_vertical);
 
@@ -161,7 +161,7 @@ void resize_image(string path, string new_path) {
 			double normalize_delta = 255 / 2;
 
 			for (int index_in_horizontal = 0; index_in_horizontal < horizontal_indices_weights.size(); index_in_horizontal++) {
-				for (int index_in_vertical = 0; index_in_vertical < vertical_indices_weights.size(); index_in_vertical) {
+				for (int index_in_vertical = 0; index_in_vertical < vertical_indices_weights.size(); index_in_vertical++) {
 					tuple<int, float> horizontal_weight = horizontal_indices_weights.at(index_in_horizontal);
 					tuple<int, float> vertical_weight = vertical_indices_weights.at(index_in_vertical);
 
