@@ -6,6 +6,7 @@
 #include <tuple>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <chrono> 
 
 using namespace std;
 using namespace cv;
@@ -48,23 +49,26 @@ void convert_to_grayscale(string path, string new_path)
 	int height = image.rows;
 
 	Mat grayscaled_image(height, width, CV_8UC3);
+#pragma omp parallel num_threads(6) 
+{
+		if (width && height) {
+#pragma omp for 
+			for (int i = 0; i < height; i++) {
+				for (int j = 0; j < width; j++) {
+					Vec3b clrOriginal = image.at<Vec3b>(i, j);
+					double fR(clrOriginal[0]);
+					double fG(clrOriginal[1]);
+					double fB(clrOriginal[2]);
 
-	if (width && height) {
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				Vec3b clrOriginal = image.at<Vec3b>(i, j);
-				double fR(clrOriginal[0]);
-				double fG(clrOriginal[1]);
-				double fB(clrOriginal[2]);
+					float fWB = sqrt((fR * fR + fG * fG + fB * fB) / 3);
 
-				float fWB = sqrt((fR * fR + fG * fG + fB * fB) / 3);
+					Vec3b new_color;
+					new_color[0] = static_cast<uchar>(fWB);
+					new_color[1] = static_cast<uchar>(fWB);
+					new_color[2] = static_cast<uchar>(fWB);
 
-				Vec3b new_color;
-				new_color[0] = static_cast<uchar>(fWB);
-				new_color[1] = static_cast<uchar>(fWB);
-				new_color[2] = static_cast<uchar>(fWB);
-
-				grayscaled_image.at<Vec3b>(i, j) = new_color;
+					grayscaled_image.at<Vec3b>(i, j) = new_color;
+				}
 			}
 		}
 	}
@@ -92,7 +96,7 @@ void resize_image(string path, string new_path) {
 	Size new_size(resized_columns, resized_rows);
 	Mat resized_image(new_size, CV_8UC3);
 
-#pragma omp parallel  
+#pragma omp parallel num_threads(6)  
 	{
 #pragma omp for 
 		for (int index = 0; index < resized_columns * resized_rows; index++) {
@@ -250,7 +254,7 @@ void rotate_image(string path, string new_path) {
 	int total_pixels = columns * rows;
 
 	if (direction == 1) {
-#pragma omp parallel  
+#pragma omp parallel num_threads(6) 
 		{
 #pragma omp for 
 			for (int index = 0; index < total_pixels; index++) {
@@ -273,7 +277,7 @@ void rotate_image(string path, string new_path) {
 		save_image(rotated_image, new_path);
 	}
 	else {
-#pragma omp parallel  
+#pragma omp parallel num_threads(6)
 		{
 #pragma omp for 
 			for (int index = 0; index < total_pixels; index++) {
@@ -293,9 +297,121 @@ void rotate_image(string path, string new_path) {
 
 #pragma omp barrier  
 
-
 		save_image(rotated_image, new_path);
 	}
+}
+
+void blur_image(string path, string new_path) {
+	Mat image;
+	image = imread(path, CV_LOAD_IMAGE_COLOR);
+
+	Mat blurred_image(image.rows, image.cols, CV_8UC3);
+
+	double blur_radius = 0;
+
+	cout << "Please enter the blur radius" << endl;
+	cin >> blur_radius;
+
+	int columns = image.cols;
+	int rows = image.rows;
+	int total_pixels = columns * rows;
+
+#pragma omp parallel num_threads(6)
+	{
+#pragma omp for 
+		for (int index = 0; index < total_pixels; index++) {
+			int current_row = index / columns;
+			int current_column = index % columns;
+
+			double left = current_column - blur_radius;
+			double right = current_column + blur_radius + 0.000001;
+			double top = current_row - blur_radius;
+			double bottom = current_row + blur_radius + 0.00001;
+
+			if (top < 0) {
+				top = 0;
+			}
+
+			if (bottom > rows) {
+				bottom = rows - 1;
+			}
+
+			if (left < 0) {
+				left = 0;
+			}
+
+			if (right > columns) {
+				right = columns - 1;
+			}
+
+			double total_weight = 0;
+			double total_r = 0;
+			double total_g = 0;
+			double total_b = 0;
+
+			for (double i = top; i <= bottom; i++) {
+				for (double j = left; j < right; j++) {
+					int column = floor(j);
+					int row = floor(i);
+
+					double horizontal_weight = (blur_radius + 1) - abs(current_column - j + 1);
+					double vertical_weight = (blur_radius + 1) - abs(current_row - i + 1);
+					double current_weight = horizontal_weight * vertical_weight;
+					Vec3b colors = image.at<Vec3b>(i, j);
+
+					total_weight += horizontal_weight * vertical_weight;
+
+					total_r += current_weight * colors[0];
+					total_g += current_weight * colors[1];
+					total_b += current_weight * colors[2];
+				}
+			}
+
+			Vec3b total_colors;
+
+			total_colors[0] = total_r / total_weight;
+			total_colors[1] = total_g / total_weight;
+			total_colors[2] = total_b / total_weight;
+
+			blurred_image.at<Vec3b>(current_row, current_column) = total_colors;
+		}
+	}
+
+	save_image(blurred_image, new_path);
+
+	//int height = image.cols;
+	//int width = image.rows;
+
+	//Mat blured_image(height, width, CV_8UC3);
+
+	//int height, width, step, channels;
+
+	//channels = 3;
+
+	//int total = 0;
+	//int i, j, x, y, tx, ty;
+	////blur
+	//for (i = 0; i < height; i++) {
+	//	for (j = 0; j < width; j++) {
+	//		int ksize = 3;
+	//		total = 0;
+	//		for (x = -ksize / 2; x <= ksize / 2; x++)
+	//			for (y = -ksize / 2; y <= ksize / 2; y++)
+	//			{
+	//				tx = i + x;
+	//				ty = j + y;
+	//				if (tx >= 0 && tx<height && ty >= 0 && ty<width)
+	//				{
+	//					total += data[tx*step + ty];
+	//				}
+	//			}
+
+	//		dstData[i*step + j] = total / ksize / ksize;
+	//	}
+	//}
+	//cvShowImage("img", img);
+	//cvShowImage("dst", dst);
+	cvWaitKey(0);
 }
 
 
@@ -324,10 +440,12 @@ int main()
 		cout << "1. Resize" << endl;
 		cout << "2. Rotate" << endl;
 		cout << "3. Grayscale" << endl;
+		cout << "4. Blur" << endl;
 		cin >> operation;
 
 
-
+		// Record start time
+		auto start = std::chrono::high_resolution_clock::now();
 
 		if (operation == "1" || operation == "Resize") {
 			resize_image(path, new_path);
@@ -338,6 +456,16 @@ int main()
 		else if (operation == "3" || operation == "Grayscale") {
 			convert_to_grayscale(path, new_path);
 		}
+		else if (operation == "4" || operation == "Blur") {
+			blur_image(path, new_path);
+		}
+
+
+		auto finish = std::chrono::high_resolution_clock::now();
+
+		auto elapsed_tine = finish - start;
+
+		cout << "Elapsed time for operation: " << elapsed_tine.count() << endl;
 	}
 
 	int a[5], i;
