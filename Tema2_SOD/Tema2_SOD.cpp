@@ -378,40 +378,6 @@ void blur_image(string path, string new_path) {
 	}
 
 	save_image(blurred_image, new_path);
-
-	//int height = image.cols;
-	//int width = image.rows;
-
-	//Mat blured_image(height, width, CV_8UC3);
-
-	//int height, width, step, channels;
-
-	//channels = 3;
-
-	//int total = 0;
-	//int i, j, x, y, tx, ty;
-	////blur
-	//for (i = 0; i < height; i++) {
-	//	for (j = 0; j < width; j++) {
-	//		int ksize = 3;
-	//		total = 0;
-	//		for (x = -ksize / 2; x <= ksize / 2; x++)
-	//			for (y = -ksize / 2; y <= ksize / 2; y++)
-	//			{
-	//				tx = i + x;
-	//				ty = j + y;
-	//				if (tx >= 0 && tx<height && ty >= 0 && ty<width)
-	//				{
-	//					total += data[tx*step + ty];
-	//				}
-	//			}
-
-	//		dstData[i*step + j] = total / ksize / ksize;
-	//	}
-	//}
-	//cvShowImage("img", img);
-	//cvShowImage("dst", dst);
-	cvWaitKey(0);
 }
 
 
