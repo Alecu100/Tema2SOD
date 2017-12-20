@@ -44,14 +44,14 @@ void convert_to_grayscale(string path, string new_path)
 	Mat image;
 	image = imread(path, CV_LOAD_IMAGE_COLOR);
 
-	int height = image.cols;
-	int width = image.rows;
+	int width = image.cols;
+	int height = image.rows;
 
 	Mat grayscaled_image(height, width, CV_8UC3);
 
 	if (width && height) {
-		for (int i = 0; i < width; i++) {
-			for (int j = 0; j < height; j++) {
+		for (int i = 0; i < height; i++) {
+			for (int j = 0; j < width; j++) {
 				Vec3b clrOriginal = image.at<Vec3b>(i, j);
 				double fR(clrOriginal[0]);
 				double fG(clrOriginal[1]);
@@ -60,9 +60,9 @@ void convert_to_grayscale(string path, string new_path)
 				float fWB = sqrt((fR * fR + fG * fG + fB * fB) / 3);
 
 				Vec3b new_color;
-				new_color[0] = static_cast<uchar>(fB);
-				new_color[1] = static_cast<uchar>(fG);
-				new_color[2] = static_cast<uchar>(fR);
+				new_color[0] = static_cast<uchar>(fWB);
+				new_color[1] = static_cast<uchar>(fWB);
+				new_color[2] = static_cast<uchar>(fWB);
 
 				grayscaled_image.at<Vec3b>(i, j) = new_color;
 			}
@@ -323,6 +323,7 @@ int main()
 		cout << "Please enter the operation to perform on the image:" << endl;
 		cout << "1. Resize" << endl;
 		cout << "2. Rotate" << endl;
+		cout << "3. Grayscale" << endl;
 		cin >> operation;
 
 
@@ -333,6 +334,9 @@ int main()
 		}
 		else if (operation == "2" || operation == "Rotate") {
 			rotate_image(path, new_path);
+		}
+		else if (operation == "3" || operation == "Grayscale") {
+			convert_to_grayscale(path, new_path);
 		}
 	}
 
