@@ -7,6 +7,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <chrono> 
+#include <ctime>
 
 using namespace std;
 using namespace cv;
@@ -411,7 +412,7 @@ int main()
 
 
 		// Record start time
-		auto start = std::chrono::high_resolution_clock::now();
+		auto start = clock();
 
 		if (operation == "1" || operation == "Resize") {
 			resize_image(path, new_path);
@@ -427,35 +428,11 @@ int main()
 		}
 
 
-		auto finish = std::chrono::high_resolution_clock::now();
+		auto finish = clock();
 
-		auto elapsed_tine = finish - start;
+		auto elapsed_tine = double(finish - start) / CLOCKS_PER_SEC;
 
-		cout << "Elapsed time for operation: " << elapsed_tine.count() << endl;
-	}
-
-	int a[5], i;
-	char stop[100];
-
-#pragma omp parallel  
-	{
-		// Perform some computation.  
-#pragma omp for  
-		for (i = 0; i < 5; i++)
-			a[i] = i * i;
-
-		// Print intermediate results.  
-#pragma omp master  
-		for (i = 0; i < 5; i++)
-			printf_s("a[%d] = %d\n", i, a[i]);
-
-		// Wait.  
-#pragma omp barrier  
-
-		// Continue with the computation.  
-#pragma omp for  
-		for (i = 0; i < 5; i++)
-			a[i] += i;
+		cout << "Elapsed time for operation: " << elapsed_tine << endl;
 	}
 }
 
